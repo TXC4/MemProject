@@ -6,11 +6,14 @@ from kivy.clock import Clock
 from kivy.lang import Builder
 from kivy.properties import StringProperty, NumericProperty
 from kivy.uix.screenmanager import ScreenManager, Screen, FadeTransition, CardTransition
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
+from kivy.uix.pagelayout import PageLayout
+from kivy.uix.carousel import Carousel
 from kivy.uix.checkbox import CheckBox
 from kivy.uix.dropdown import DropDown
+from kivy.uix.image import Image
 from kivy.uix.spinner import Spinner
-from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
@@ -97,15 +100,12 @@ Builder.load_string("""
             pos: app.pos
             size: app.size
     GridLayout:
-        rows:2
+        rows:3
         size_hint: 1,1
         GridLayout:
-            cols: 5
+            cols: 3
             size_hint_y: .1
             pos_hint: {"top" : 1}
-            Button:
-                text: 'Prev'
-                background_color: (.297, .297, .297, 1)
             Button:
                 text: 'Shuffle'
                 on_release: root.shuffleCards(root.quantity, root.grouping)
@@ -118,6 +118,7 @@ Builder.load_string("""
                     text: str(root.quantity)
                     font_size: "14sp"
                     values: ('1', '2', '3', '5', '10', '20', '30', '52')
+                    on_text: root.setQuantity(int(self.text))
             GridLayout:
                 rows: 2
                 Label:
@@ -126,29 +127,25 @@ Builder.load_string("""
                 Spinner:
                     text: root.grouping
                     font_size: "14sp"
-                    values: ('Cards', 'Pairs', 'Hands', 'Decks')
-            Button:
-                text: 'Next'
-                background_color: (.297, .297, .297, 1)
-                on_release: root.getNextCard()
-        CardScreenSwitcher:
-            id: cardScreenManager
+                    values: ('Cards', 'Decks')
+                    on_text: root.setGrouping(self.text)
+        GridLayout:
+            cols: 2
+            size_hint: 1, .05
+            Label: 
+                font_size: '18sp'
+                text: 'card/total'
+            Label: 
+                font_size: '18sp'
+                text: 'time'
+        GridLayout:
+            id: cardGridManager
+            cols: 1
+            rows: 1
             size_hint_y: .8
             pos_hint: {"top" : .9}
-<CardInstructionsScreen>:
-    Label:
-        text: "Instructions"
-<CardGameScreen>:
-    GridLayout:
-        rows: 3
-        Label:
-            size_hint_y: .1
-            text: "Time Elapsed"
-        Image:
-            id: cardImg
-        Label:
-            size_hint_y: .1
-            text: "Card Num / Total"
+            Label:
+                text: 'Instructions'
 
 <Screen3>:
     Label:
@@ -271,27 +268,29 @@ class NumbersScreen(Screen, GridLayout):
         self.ids.numLabel.text = x
     def newNums(self):
         self.getNumbers(self.grouping, self.quantity)
-        
+class ImgCarousel(Carousel):
+    def __init__(self, **kwargs):
+        super(ImgCarousel, self).__init__(**kwargs)
+    currentC = 0
+    #Trying to bind events outside of this class to this function
+    #Confused because it is called on its own...
+    def on_current_slide(self, instance, value):
+        print(self.slides.index(self.current_slide) + 1)
 class CardsScreen(Screen, GridLayout):
     quantity = 10
     grouping = 'Cards'
-    currentCard = 0
+    currentCard = 1
     totalCards = 0
-    cardScreenList = []
+    imgCarousel = ImgCarousel()
     cardImageList = ["c01.png","c02.png","c03.png","c04.png","c05.png","c06.png","c07.png","c08.png","c09.png","c10.png","c11.png","c12.png","c13.png",
     "d01.png","d02.png","d03.png","d04.png","d05.png","d06.png","d07.png","d08.png","d09.png","d10.png","d11.png","d12.png","d13.png",
     "h01.png","h02.png","h03.png","h04.png","h05.png","h06.png","h07.png","h08.png","h09.png","h10.png","h11.png","h12.png","h13.png",
     "s01.png","s02.png","s03.png","s04.png","s05.png","s06.png","s07.png","s08.png","s09.png","s10.png","s11.png","s12.png","s13.png"]
-
-    # keep in bounds
-    def getNextCard(self):
-        self.currentCard += 1
-        self.ids.cardScreenManager.current = 'card' + str(self.currentCard)
-
-    # find why multiple name occurences
     def shuffleCards(self, q, g):
-        self.cardScreenList.clear()
-        self.ids.cardScreenManager.clear_widgets()
+        self.ids.cardGridManager.clear_widgets()
+        self.imgCarousel.clear_widgets()
+        self.imgCarousel.bind
+        self.ids.cardGridManager.add_widget(self.imgCarousel)
         self.currentCard = 0
         c = 0
         if g == 'Decks':
@@ -301,28 +300,21 @@ class CardsScreen(Screen, GridLayout):
             c = q
             q = 52
         self.totalCards = c
+        print(g)
         print("c", c, "q", q)
         temp = random.sample(range(q), c)
         for i in range(c):
             print(i, ", ", temp[i] % 52)
             print(self.cardImageList[temp[i] % 52])
-            #then create list of screen objects and place those images onto them
-            #image screen show should be [0] next button incrs prev decrs
-            tempStr = 'card' + str(i)
-            self.cardScreenList.append(CardGameScreen(name=tempStr))
-            self.cardScreenList[i].ids.cardImg.source = 'Images/Cards/' + self.cardImageList[temp[i] % 52]
-            self.ids.cardScreenManager.add_widget(self.cardScreenList[i])
-            print(self.cardScreenList[i].name)
-        self.ids.cardScreenManager.current = 'card' + str(self.currentCard)
+            #self.pl.add_widget(Image(source='Images/Cards/' + self.cardImageList[temp[i] % 52]))
+            self.imgCarousel.add_widget(Image(source='Images/Cards/' + self.cardImageList[temp[i] % 52]))
+        print(self.imgCarousel.slides)
+        #print("current: ", self.on_current_slide)
         print("END\n\n")
-class CardScreenSwitcher(ScreenManager):
-    def __init__(self,**kwargs):
-        super(CardScreenSwitcher, self).__init__(**kwargs, transition=CardTransition())
-        self.add_widget(CardInstructionsScreen(name='cis'))
-class CardInstructionsScreen(Screen):
-    pass
-class CardGameScreen(Screen):
-    pass
+    def setQuantity(self, q):
+        self.quantity = q
+    def setGrouping(self, g):
+        self.grouping = g
 
 
 class Screen3(Screen):
